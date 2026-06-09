@@ -15,6 +15,7 @@
     "paths": {
       "@/*": ["./*"]
     },
+    "skipLibCheck": true,
     "noEmit": true
   }
 }
