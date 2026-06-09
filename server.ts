@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import OpenAI from "openai";
+import OpenAI, { AzureOpenAI } from "openai";
 import { GoogleGenAI } from "@google/genai";
 import * as dotenv from "dotenv";
 
@@ -14,21 +14,11 @@ const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "";
 const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview";
 
 function getAzureOpenAIClient() {
-  const baseURL = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}`;
-  return new OpenAI({
-    baseURL,
+  return new AzureOpenAI({
+    endpoint: AZURE_OPENAI_ENDPOINT,
     apiKey: AZURE_OPENAI_API_KEY,
-    defaultHeaders: {
-      "api-key": AZURE_OPENAI_API_KEY,
-    }
-  });
-}
-
-// Standard custom configuration requested by key requirements using standard OpenAI client
-function getOpenAIClient() {
-  return new OpenAI({
-    baseURL: process.env.AMAZON_NOVA_BASE_URL || "https://api.nova.amazon.com/v1",
-    apiKey: process.env.AMAZON_NOVA_API_KEY || "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4"
+    apiVersion: AZURE_OPENAI_API_VERSION,
+    deployment: AZURE_OPENAI_DEPLOYMENT,
   });
 }
 
@@ -37,6 +27,14 @@ console.log("[Boot] Azure OpenAI:", {
   endpoint: AZURE_OPENAI_ENDPOINT ? `${AZURE_OPENAI_ENDPOINT}...` : "Not configured",
   deployment: AZURE_OPENAI_DEPLOYMENT || "Not configured"
 });
+
+// Standard custom configuration requested by key requirements using standard OpenAI client
+function getOpenAIClient() {
+  return new OpenAI({
+    baseURL: process.env.AMAZON_NOVA_BASE_URL || "https://api.nova.amazon.com/v1",
+    apiKey: process.env.AMAZON_NOVA_API_KEY || "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4"
+  });
+}
 
 const app = express();
 const PORT = 3000;
