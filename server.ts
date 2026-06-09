@@ -7,11 +7,17 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+const NOVA_API_KEY = process.env.AMAZON_NOVA_API_KEY || process.env.AMAZON_NOVA_KEY || process.env.NOVA_API_KEY;
+const NOVA_BASE_URL = process.env.AMAZON_NOVA_BASE_URL || process.env.NOVA_BASE_URL || "https://api.nova.amazon.com/v1";
+const NOVA_MODEL = process.env.AMAZON_NOVA_MODEL || process.env.NOVA_MODEL || "nova-2-lite-v1";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+
 // Standard custom configuration requested by key requirements using standard OpenAI client
 function getOpenAIClient() {
   return new OpenAI({
-    baseURL: process.env.AMAZON_NOVA_BASE_URL || "https://api.nova.amazon.com/v1",
-    apiKey: process.env.AMAZON_NOVA_API_KEY
+    baseURL: NOVA_BASE_URL,
+    apiKey: NOVA_API_KEY
   });
 }
 
@@ -20,9 +26,9 @@ const app = express();
 const PORT = 3000;
 
 console.log("[Boot] Amazon Nova:", {
-  enabled: !!process.env.AMAZON_NOVA_API_KEY,
-  baseURL: process.env.AMAZON_NOVA_BASE_URL || "https://api.nova.amazon.com/v1",
-  model: process.env.AMAZON_NOVA_MODEL || "nova-2-lite-v1"
+  enabled: !!NOVA_API_KEY,
+  baseURL: NOVA_BASE_URL,
+  model: NOVA_MODEL
 });
 
 
@@ -379,16 +385,16 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
     let rawText = "";
     let usingEngineName = "";
 
-    const hasGeminiKey = !!(process.env.GEMINI_API_KEY && 
-                           process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY" && 
-                           process.env.GEMINI_API_KEY.trim() !== "");
+    const hasGeminiKey = !!(GEMINI_API_KEY &&
+                           GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
+                           GEMINI_API_KEY.trim() !== "");
 
-    const hasNovaKey = !!(process.env.AMAZON_NOVA_API_KEY && 
-                         process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" && 
-                         process.env.AMAZON_NOVA_API_KEY.trim() !== "");
+    const hasNovaKey = !!(NOVA_API_KEY &&
+                         NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
+                         NOVA_API_KEY.trim() !== "");
 
-    const hasOpenAIKey = !!(process.env.OPENAI_API_KEY && 
-                           process.env.OPENAI_API_KEY.trim() !== "");
+    const hasOpenAIKey = !!(OPENAI_API_KEY &&
+                           OPENAI_API_KEY.trim() !== "");
 
     if (model === "simulation-mode") {
       console.log("Orchestrator: Bypassing live LLM per user request (Simulation Mode selected).");
@@ -436,7 +442,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
           });
         }
 
-        const modelName = process.env.AMAZON_NOVA_MODEL || "nova-2-lite-v1";
+        const modelName = NOVA_MODEL;
         const completion = await oai.chat.completions.create({
           model: modelName,
           messages: openaiMessages,
@@ -449,7 +455,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
         const activeGeminiModel = (model && model.startsWith("gemini-")) ? model : "gemini-3.5-flash";
         console.log(`Orchestrator: Executing request on Google Gemini (${activeGeminiModel}) model...`);
         const ai = new GoogleGenAI({
-          apiKey: process.env.GEMINI_API_KEY,
+          apiKey: GEMINI_API_KEY,
           httpOptions: {
             headers: {
               'User-Agent': 'aistudio-build',
@@ -496,7 +502,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
         usingEngineName = `Google Gemini (${activeGeminiModel})`;
       } else if (hasOpenAIKey) {
         console.log("Orchestrator: Executing request on OpenAI gpt-4o-mini model...");
-        const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const oai = new OpenAI({ apiKey: OPENAI_API_KEY });
         const openaiMessages: any[] = [
           { role: "system", content: systemInstruction }
         ];
@@ -644,9 +650,9 @@ func ProcessThroughput() {
 }`;
 
     // Append beautiful, helpful message on Vercel deployment and environment setup if no active key is found or there is a failure
-    const hasAnyModelKey = !!((process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY") ||
-                            (process.env.AMAZON_NOVA_API_KEY && process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4") ||
-                            process.env.OPENAI_API_KEY);
+    const hasAnyModelKey = !!((GEMINI_API_KEY && GEMINI_API_KEY !== "MY_GEMINI_API_KEY") ||
+                            (NOVA_API_KEY && NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4") ||
+                            OPENAI_API_KEY);
 
     let displayResponse = fallbackResponse;
     if (!hasAnyModelKey) {
@@ -805,9 +811,9 @@ app.post("/api/documents/search", async (req, res) => {
       return;
     }
 
-    const hasGeminiKey = !!(process.env.GEMINI_API_KEY && 
-                           process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY" && 
-                           process.env.GEMINI_API_KEY.trim() !== "");
+    const hasGeminiKey = !!(GEMINI_API_KEY &&
+                           GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
+                           GEMINI_API_KEY.trim() !== "");
 
     // Use Google Gemini (fallback to Amazon Nova or local matching if necessary) to perform semantic matching
     try {
@@ -818,7 +824,7 @@ app.post("/api/documents/search", async (req, res) => {
       if (hasGeminiKey) {
         console.log("Orchestrator: Executing semantic search on Google Gemini (gemini-3.5-flash)...");
         const ai = new GoogleGenAI({
-          apiKey: process.env.GEMINI_API_KEY,
+          apiKey: GEMINI_API_KEY,
           httpOptions: {
             headers: {
               'User-Agent': 'aistudio-build',
@@ -848,15 +854,15 @@ Return ONLY a JSON array of the format:
         rawContent = response.text || "[]";
       } else {
         // Fallback to Amazon Nova if configured, otherwise local matching
-        const hasNovaKey = !!(process.env.AMAZON_NOVA_API_KEY && 
-                             process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" && 
-                             process.env.AMAZON_NOVA_API_KEY.trim() !== "");
+        const hasNovaKey = !!(NOVA_API_KEY &&
+                             NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
+                             NOVA_API_KEY.trim() !== "");
 
         if (hasNovaKey) {
           console.log("Orchestrator: Executing semantic search fallback on Amazon Nova...");
           const oai = getOpenAIClient();
           const response = await oai.chat.completions.create({
-            model: process.env.AMAZON_NOVA_MODEL || "nova-2-lite-v1",
+            model: NOVA_MODEL,
             messages: [
               {
                 role: "system",
