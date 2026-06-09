@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4cd7f6;
+  --color-on-primary: #001f26;
+  --color-secondary: #d0bcff;
+  --color-tertiary: #4edea3;
+  --color-background: #0b1326;
+  
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+  
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #bcc9cd;
+  --color-outline: #869397;
+  --color-outline-variant: #3d494c;
+  
+  --font-sans: "Geist", "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", monospace;
+  
+  --animate-pulse-slow: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(1.05); }
+}
+
+/* Custom CSS utilities for High-performance AI dashboard */
+.glass-panel {
+  background: rgba(19, 27, 46, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(30, 41, 59, 0.6);
+}
+
+.ai-border-glow {
+  border-left: 3px solid transparent;
+  border-image: linear-gradient(to bottom, #4cd7f6, #d0bcff) 1;
+}
+
+.thinking-pip {
+  animation: pulse-slow 2s infinite;
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d494c;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #869397;
+}
+
+/* Custom keyframes for custom loader */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes reverse-spin-slow {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-reverse-spin {
+  animation: reverse-spin-slow 15s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 10s linear infinite;
+}
+
+/* Light mode luxury theme & adaptive color palette */
+.light-theme {
+  --color-background: #f1f5f9;
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.light-theme main, 
+.light-theme header, 
+.light-theme .flex-1,
+.light-theme div[class*="bg-[#0b1326]"],
+.light-theme div[class*="bg-[#060e20]"],
+.light-theme main[class*="bg-[#0b1326]"] {
+  background-color: #f1f5f9 !important;
+}
+
+.light-theme header {
+  background-color: rgba(241, 245, 249, 0.75) !important;
+  border-bottom-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.light-theme aside,
+.light-theme aside[class*="bg-[#060e20]"] {
+  background-color: #ffffff !important;
+  border-right-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.light-theme .glass-panel,
+.light-theme div[class*="glass-panel"] {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(203, 213, 225, 0.8) !important;
+  box-shadow: 0 4px 20px -2px rgba(0,0,0,0.04), 0 2px 10px -3px rgba(0,0,0,0.02) !important;
+}
+
+.light-theme input,
+.light-theme select,
+.light-theme textarea {
+  background-color: #ffffff !important;
+  border-color: rgba(203, 213, 225, 0.8) !important;
+  color: #0f172a !important;
+}
+
+.light-theme select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Specific text adaptations for correct readability contrasts */
+.light-theme .text-\[\#dae2fd\] {
+  color: #0f172a !important;
+}
+.light-theme .text-\[\#bcc9cd\],
+.light-theme .text-[#bcc9cd] {
+  color: #334155 !important;
+}
+.light-theme .text-\[\#869397\],
+.light-theme .text-[#869397] {
+  color: #475569 !important;
+}
+.light-theme .text-white {
+  color: #0f172a !important;
+}
+.light-theme .text-\[\#dae2fd\]\/90 {
+  color: rgba(15, 23, 42, 0.9) !important;
+}
+.light-theme .text-\[\#dae2fd\]\/85 {
+  color: rgba(15, 23, 42, 0.85) !important;
+}
+.light-theme .text-\[\#dae2fd\]\/65 {
+  color: rgba(15, 23, 42, 0.65) !important;
+}
+
+.light-theme .border-\[\#3d494c\]\/20,
+.light-theme .border-\[\#3d494c\]\/10,
+.light-theme .border-\[\#3d494c\]\/25,
+.light-theme .border-\[\#3d494c\]\/30,
+.light-theme .border-\[\#3d494c\]\/15,
+.light-theme .border-r {
+  border-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.light-theme .bg-\[\#131b2e\]\/65,
+.light-theme .bg-\[\#131b2e\]\/60,
+.light-theme .bg-\[\#131b2e\]\/30,
+.light-theme .bg-\[\#131b2e\]\/20,
+.light-theme .bg-\[\#131b2e\]\/55,
+.light-theme .bg-\[\#131b2e\]\/50,
+.light-theme .bg-\[\#131b2e\]\/40,
+.light-theme .bg-\[\#131b2e\]\/45,
+.light-theme .bg-\[\#060e20\]\/40 {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.light-theme .bg-\[\#131b2e\] {
+  background-color: #f8fafc !important;
+}
+
+.light-theme .bg-\[\#0b1326\] {
+  background-color: #f1f5f9 !important;
+}
+
+.light-theme .bg-\[\#020617\]\/85 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+.light-theme .bg-\[\#020617\] {
+  background-color: #e2e8f0 !important;
+}
+
+.light-theme .bg-\[\#060e20\] {
+  background-color: #f8fafc !important;
+}
+
+.light-theme .bg-\[\#0b1326\]\/45 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.light-theme .border-dashed {
+  border-color: rgba(203, 213, 225, 0.8) !important;
+}
+
+.light-theme .hover\:bg-\[\#131b2e\]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.light-theme h3, 
+.light-theme h4, 
+.light-theme h5, 
+.light-theme h6 {
+  color: #0f172a !important;
+}
+
+/* Blueprint topology view enhancements in light mode */
+.light-theme select {
+  font-weight: 500;
+}
+
+.light-theme div[class*="bg-[#171f33]"] {
+  background-color: #ffffff !important;
+  border-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.light-theme .markdown-body {
+  color: #0f172a !important;
+}
+
+/* Light mode chat bubbles custom stylings */
+.light-theme .bg-[#222a3d]/40 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.light-theme .hover\:bg-\[\#222a3d\]\/40:hover {
+  background-color: rgba(203, 213, 225, 0.45) !important;
+}
+
+.light-theme .bg-\[\#1e293b\]\/60 {
+  background-color: #ffffff !important;
+  border-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+.light-theme .text-[#dae2fd],
+.light-theme .text-[#dae2fd]/90 {
+  color: #0f172a !important;
+}
+
+.light-theme .text-teal-400 {
+  color: #0d9488 !important;
+}
+
+.light-theme .bg-[#0b1326]/60 {
+  background-color: rgba(241, 245, 249, 0.85) !important;
+}
+
+/* Custom scrollbars for light mode */
+.light-theme ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+.light-theme ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
