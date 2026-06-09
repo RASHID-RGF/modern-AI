@@ -766,6 +766,136 @@ An error occurred while connecting to your configured AI engine:
   }
 });
 
+// 1b. Streaming Chat Generation (Server-Sent Events)
+app.post("/api/chat/stream", async (req, res) => {
+  try {
+    const { prompt, history, webSearchGrounding, image, isScreenShare, selectedDocId, model } = req.body;
+    if (!prompt) {
+      res.status(400).json({ error: "Prompt is required" });
+      return;
+    }
+
+    const hasAzureKey = !!(AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT);
+    const hasGeminiKey = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY");
+    const hasNovaKey = !!(process.env.AMAZON_NOVA_API_KEY && process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4");
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+
+    // Set SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const send = (data: string) => {
+      res.write(`data: ${data}\n\n`);
+    };
+
+    // Fallback when no live model keys are configured
+    if (!hasAzureKey && !hasGeminiKey && !hasNovaKey && !hasOpenAIKey) {
+      const localResponse = generateDynamicLocalResponse(prompt, history, selectedDocId, image);
+      send(JSON.stringify(localResponse));
+      res.end();
+      return;
+    }
+
+    // Build context (same logic as non‑streaming endpoint)
+    let mergedDocsContext = "";
+    let systemInstructionDocPrefix = "";
+    const chosenDoc = selectedDocId ? globalDocuments.find(d => d.id === selectedDocId) : null;
+    if (chosenDoc) {
+      mergedDocsContext = `CHOSEN TARGET FILE CHOSEN BY USER TO OPERATE ON:\nFile Resource ID: ${chosenDoc.id}\nFile Name: ${chosenDoc.name}\nFile Extension: ${chosenDoc.type}\nFile Content:\n--- START FILE CONTENT ---\n${chosenDoc.content}\n--- END FILE CONTENT ---`;
+      systemInstructionDocPrefix = `IMPORTANT SURGICAL DIRECTIVE: The user has explicitly selected the file "${chosenDoc.name}" from their knowledge base.`;
+    } else {
+      mergedDocsContext = globalDocuments.map(d => `Document "${d.name}":\n${d.content}`).join("\n\n");
+    }
+
+    const systemInstruction = `You are RASH5J4AO AI, an omni‑capable super‑intelligent virtual assistant and general orchestrator.\n${systemInstructionDocPrefix}`;
+
+    const formattedPrompt = `${mergedDocsContext}\n\nUser Question/Instruction specifically for operations: ${prompt}`;
+
+    // ------- Azure OpenAI streaming -------
+    if (hasAzureKey) {
+      const azureClient = getAzureOpenAIClient();
+      const azureMessages: any[] = [{ role: "system", content: systemInstruction }];
+
+      if (history && Array.isArray(history)) {
+        history.slice(-10).forEach((msg: any) => {
+          azureMessages.push({ role: msg.sender === "user" ? "user" : "assistant", content: msg.text });
+        });
+      }
+
+      if (image && image.data && image.mimeType) {
+        const base64Url = image.data.startsWith("data:") ? image.data : `data:${image.mimeType};base64,${image.data}`;
+        azureMessages.push({
+          role: "user",
+          content: [{ type: "text", text: formattedPrompt }, { type: "image_url", image_url: { url: base64Url } }],
+        });
+      } else {
+        azureMessages.push({ role: "user", content: formattedPrompt });
+      }
+
+      const stream = await azureClient.chat.completions.create({
+        model: AZURE_OPENAI_DEPLOYMENT,
+        messages: azureMessages,
+        max_completion_tokens: 16384,
+        temperature: 0.2,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) send(JSON.stringify({ delta: content }));
+      }
+      res.end();
+      return;
+    }
+
+    // ------- OpenAI (gpt‑4o‑mini) streaming -------
+    if (hasOpenAIKey) {
+      const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openaiMessages: any[] = [{ role: "system", content: systemInstruction }];
+
+      if (history && Array.isArray(history)) {
+        history.slice(-10).forEach((msg: any) => {
+          openaiMessages.push({ role: msg.sender === "user" ? "user" : "assistant", content: msg.text });
+        });
+      }
+
+      if (image && image.data && image.mimeType) {
+        const base64Url = image.data.startsWith("data:") ? image.data : `data:${image.mimeType};base64,${image.data}`;
+        openaiMessages.push({
+          role: "user",
+          content: [{ type: "text", text: formattedPrompt }, { type: "image_url", image_url: { url: base64Url } }],
+        });
+      } else {
+        openaiMessages.push({ role: "user", content: formattedPrompt });
+      }
+
+      const stream = await oai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: openaiMessages,
+        temperature: 0.2,
+        stream: true,
+        response_format: { type: "json_object" },
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) send(JSON.stringify({ delta: content }));
+      }
+      res.end();
+      return;
+    }
+
+    // Fallback to local generator
+    const localResponse = generateDynamicLocalResponse(prompt, history, selectedDocId, image);
+    send(JSON.stringify(localResponse));
+    res.end();
+  } catch (error: any) {
+    console.error("Streaming API Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 2. Fetch all documents in knowledge base
 app.get("/api/documents", (req, res) => {
   res.json(globalDocuments);
