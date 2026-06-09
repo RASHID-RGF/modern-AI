@@ -1,0 +1,15 @@
+name: nexus-audios-deploy
+runtime:
+  nodeVersion: 20
+build:
+  command: npm run vercel-build
+  outputDirectory: dist
+start:
+  command: node dist/server.cjs
+  env:
+    NODE_ENV: production
+
+notes:
+  - This deploy.yml is the single source of truth for CI/CD.
+  - The GitHub workflow will use the build step; runtime is typically handled by Vercel.
+
