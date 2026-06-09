@@ -10,6 +10,10 @@ dotenv.config();
 const NOVA_API_KEY = process.env.AMAZON_NOVA_API_KEY || process.env.AMAZON_NOVA_KEY || process.env.NOVA_API_KEY;
 const NOVA_BASE_URL = process.env.AMAZON_NOVA_BASE_URL || process.env.NOVA_BASE_URL || "https://api.nova.amazon.com/v1";
 const NOVA_MODEL = process.env.AMAZON_NOVA_MODEL || process.env.NOVA_MODEL || "nova-2-lite-v1";
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || "";
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || "";
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "";
+const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
 
@@ -21,6 +25,18 @@ function getOpenAIClient() {
   });
 }
 
+// Azure OpenAI client configuration
+function getAzureOpenAIClient() {
+  return new OpenAI({
+    apiVersion: AZURE_OPENAI_API_VERSION,
+    baseURL: `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}`,
+    apiKey: AZURE_OPENAI_API_KEY,
+    defaultHeaders: {
+      "api-key": AZURE_OPENAI_API_KEY,
+    }
+  });
+}
+
 
 const app = express();
 const PORT = 3000;
@@ -29,6 +45,12 @@ console.log("[Boot] Amazon Nova:", {
   enabled: !!NOVA_API_KEY,
   baseURL: NOVA_BASE_URL,
   model: NOVA_MODEL
+});
+
+console.log("[Boot] Azure OpenAI:", {
+  enabled: !!AZURE_OPENAI_API_KEY && !!AZURE_OPENAI_ENDPOINT,
+  endpoint: AZURE_OPENAI_ENDPOINT ? `${AZURE_OPENAI_ENDPOINT}...` : "Not configured",
+  deployment: AZURE_OPENAI_DEPLOYMENT || "Not configured"
 });
 
 
@@ -393,6 +415,13 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
                          NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
                          NOVA_API_KEY.trim() !== "");
 
+    const hasAzureKey = !!(AZURE_OPENAI_API_KEY &&
+                          AZURE_OPENAI_ENDPOINT &&
+                          AZURE_OPENAI_DEPLOYMENT &&
+                          AZURE_OPENAI_API_KEY.trim() !== "" &&
+                          AZURE_OPENAI_ENDPOINT.trim() !== "" &&
+                          AZURE_OPENAI_DEPLOYMENT.trim() !== "");
+
     const hasOpenAIKey = !!(OPENAI_API_KEY &&
                            OPENAI_API_KEY.trim() !== "");
 
@@ -451,6 +480,52 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
 
         rawText = completion.choices[0]?.message?.content || "{}";
         usingEngineName = `Amazon Nova (${modelName})`;
+      } else if (hasAzureKey) {
+        console.log("Orchestrator: Executing request on Azure OpenAI API (User configured)...");
+        const azureClient = getAzureOpenAIClient();
+        const azureMessages: any[] = [
+          { role: "system", content: systemInstruction }
+        ];
+
+        if (history && Array.isArray(history)) {
+          history.slice(-10).forEach((msg: any) => {
+            azureMessages.push({
+              role: msg.sender === "user" ? "user" : "assistant",
+              content: msg.text
+            });
+          });
+        }
+
+        if (image && image.data && image.mimeType) {
+          let base64Url = image.data;
+          if (!base64Url.startsWith("data:")) {
+            base64Url = `data:${image.mimeType};base64,${image.data}`;
+          }
+          azureMessages.push({
+            role: "user",
+            content: [
+              { type: "text", text: formattedPrompt },
+              {
+                type: "image_url",
+                image_url: { url: base64Url }
+              }
+            ]
+          });
+        } else {
+          azureMessages.push({
+            role: "user",
+            content: formattedPrompt
+          });
+        }
+
+        const completion = await azureClient.chat.completions.create({
+          model: AZURE_OPENAI_DEPLOYMENT,
+          messages: azureMessages,
+          temperature: 0.2
+        });
+
+        rawText = completion.choices[0]?.message?.content || "{}";
+        usingEngineName = `Azure OpenAI (${AZURE_OPENAI_DEPLOYMENT})`;
       } else if (hasGeminiKey) {
         const activeGeminiModel = (model && model.startsWith("gemini-")) ? model : "gemini-3.5-flash";
         console.log(`Orchestrator: Executing request on Google Gemini (${activeGeminiModel}) model...`);
