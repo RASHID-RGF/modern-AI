@@ -323,6 +323,10 @@ I've processed your message in our local sandbox environment. Since there is no 
 
 // REST API Endpoints
 
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, deployed: true, time: new Date().toISOString() });
+});
+
 // 1. Chat Generation with optional search grounding using our real Amazon Nova client
 app.post("/api/chat", async (req, res) => {
   try {
@@ -1162,6 +1166,9 @@ async function startServer() {
 
 export default app;
 
+// On Vercel, Vercel will call the exported Express app via dedicated serverless handlers.
+// Do NOT start a listening server in serverless environments.
 if (!process.env.VERCEL) {
   startServer();
 }
+
