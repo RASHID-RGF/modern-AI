@@ -7,29 +7,16 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const NOVA_API_KEY = process.env.AMAZON_NOVA_API_KEY || process.env.AMAZON_NOVA_KEY || process.env.NOVA_API_KEY;
-const NOVA_BASE_URL = process.env.AMAZON_NOVA_BASE_URL || process.env.NOVA_BASE_URL || "https://api.nova.amazon.com/v1";
-const NOVA_MODEL = process.env.AMAZON_NOVA_MODEL || process.env.NOVA_MODEL || "nova-2-lite-v1";
+// Azure OpenAI client configuration
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || "";
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || "";
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || "";
 const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
 
-// Standard custom configuration requested by key requirements using standard OpenAI client
-function getOpenAIClient() {
-  return new OpenAI({
-    baseURL: NOVA_BASE_URL,
-    apiKey: NOVA_API_KEY
-  });
-}
-
-// Azure OpenAI client configuration
 function getAzureOpenAIClient() {
+  const baseURL = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}`;
   return new OpenAI({
-    apiVersion: AZURE_OPENAI_API_VERSION,
-    baseURL: `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}`,
+    baseURL,
     apiKey: AZURE_OPENAI_API_KEY,
     defaultHeaders: {
       "api-key": AZURE_OPENAI_API_KEY,
@@ -37,22 +24,22 @@ function getAzureOpenAIClient() {
   });
 }
 
-
-const app = express();
-const PORT = 3000;
-
-console.log("[Boot] Amazon Nova:", {
-  enabled: !!NOVA_API_KEY,
-  baseURL: NOVA_BASE_URL,
-  model: NOVA_MODEL
-});
+// Standard custom configuration requested by key requirements using standard OpenAI client
+function getOpenAIClient() {
+  return new OpenAI({
+    baseURL: process.env.AMAZON_NOVA_BASE_URL || "https://api.nova.amazon.com/v1",
+    apiKey: process.env.AMAZON_NOVA_API_KEY || "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4"
+  });
+}
 
 console.log("[Boot] Azure OpenAI:", {
-  enabled: !!AZURE_OPENAI_API_KEY && !!AZURE_OPENAI_ENDPOINT,
+  enabled: !!AZURE_OPENAI_API_KEY && !!AZURE_OPENAI_ENDPOINT && !!AZURE_OPENAI_DEPLOYMENT,
   endpoint: AZURE_OPENAI_ENDPOINT ? `${AZURE_OPENAI_ENDPOINT}...` : "Not configured",
   deployment: AZURE_OPENAI_DEPLOYMENT || "Not configured"
 });
 
+const app = express();
+const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -119,7 +106,7 @@ let globalDocuments = [...initialDocuments];
 // Local Dynamic Semantic Agent responding when credentials are empty/invalid
 function generateDynamicLocalResponse(prompt: string, history: any[], selectedDocId?: string, image?: any) {
   const normPrompt = prompt.toLowerCase().trim();
-  
+
   // Decide target documents to look into
   let targetedDocs = globalDocuments;
   if (selectedDocId) {
@@ -135,7 +122,7 @@ function generateDynamicLocalResponse(prompt: string, history: any[], selectedDo
 
   // Split prompt into keywords to find matches
   const keywords = normPrompt.split(/[\s,.\-!?_()]+/).filter(w => w.length > 3);
-  
+
   for (const doc of targetedDocs) {
     const lines = doc.content.split(/\n+/);
     for (const line of lines) {
@@ -144,7 +131,7 @@ function generateDynamicLocalResponse(prompt: string, history: any[], selectedDo
       const hasWordMatch = keywords.some(kw => line.toLowerCase().includes(kw));
       const hasDirectMatch = line.toLowerCase().includes(normPrompt) || normPrompt.includes(doc.name.toLowerCase().split('.')[0]);
       if (hasWordMatch || hasDirectMatch) {
-         matchedSnippets.push(`**${doc.name}**: "${line.trim()}"`);
+        matchedSnippets.push(`**${doc.name}**: "${line.trim()}"`);
       }
     }
   }
@@ -176,7 +163,7 @@ Here is what I can do for you right now:
   else if (isDocQuery && matchedSnippets.length > 0) {
     thoughtProcess.push("Matched keyword vectors across in-memory document blobs");
     thoughtProcess.unshift("RAG retrieval successful");
-    
+
     text = `### 📂 Document Retrieval-Augmented Report
 
 Based on the files in your knowledge base matching your query, here is the verified information:
@@ -215,7 +202,7 @@ FastAPI is the primary gateway for request processing and token authorization in
 - **Routing Logic**: Delegates request payloads to downstream orchestrators.
 - **Rate Limiting**: Enforces strict throughput boundaries (e.g., 10K requests/minute).
 - **Concurrency**: Fully optimized with uvloop and asynchronous ASGI context handlers.`;
-    
+
     codeBlock = {
       filename: "gateway.py",
       language: "python",
@@ -245,7 +232,7 @@ The frontend comprises dynamic dashboards built using React, Vite, and glassmorp
 
 - **Layout Structure**: Single-page responsiveness with dynamic panel views.
 - **Real-time updates**: Integrated with backend event polling and audio capturing components.`;
-    
+
     codeBlock = {
       filename: "GlassmorphicCard.tsx",
       language: "tsx",
@@ -349,11 +336,11 @@ app.post("/api/chat", async (req, res) => {
 
     // Check if a specific document was selected by the user to work on
     const chosenDoc = selectedDocId ? globalDocuments.find(d => d.id === selectedDocId) : null;
-    
+
     // Customize context based on whether the user has chosen a target file to work on
     let mergedDocsContext = "";
     let systemInstructionDocPrefix = "";
-    
+
     if (chosenDoc) {
       mergedDocsContext = `CHOSEN TARGET FILE CHOSEN BY USER TO OPERATE ON:\nFile Resource ID: ${chosenDoc.id}\nFile Name: ${chosenDoc.name}\nFile Extension: ${chosenDoc.type}\nFile Content:\n--- START FILE CONTENT ---\n${chosenDoc.content}\n--- END FILE CONTENT ---`;
       systemInstructionDocPrefix = `IMPORTANT SURGICAL DIRECTIVE: The user has explicitly selected the file "${chosenDoc.name}" from their knowledge base matrices to work on. You MUST carefully parse the content of this file and execute the user's instructions, edits, calculations, restructuring, or operations specifically on / using this file's context.`;
@@ -396,10 +383,10 @@ Otherwise, always set the "codeBlock" key to null. Do not write unsolicited code
 
 Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.`;
 
-    const promptVisualNote = image 
-      ? (isScreenShare 
-          ? '\n(Note: The user is sharing their active screen, shown in this frame image. They are speaking to you hands-free. Direct your analysis of this image to help answer their question based on what is currently displayed on their screen.)' 
-          : '\n(Note: The user has uploaded an image, which you must analyze as part of this request)')
+    const promptVisualNote = image
+      ? (isScreenShare
+        ? '\n(Note: The user is sharing their active screen, shown in this frame image. They are speaking to you hands-free. Direct your analysis of this image to help answer their question based on what is currently displayed on their screen.)'
+        : '\n(Note: The user has uploaded an image, which you must analyze as part of this request)')
       : '';
 
     const formattedPrompt = `${mergedDocsContext}\n\nUser Question/Instruction specifically for operations: ${prompt}${promptVisualNote}`;
@@ -407,23 +394,23 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
     let rawText = "";
     let usingEngineName = "";
 
-    const hasGeminiKey = !!(GEMINI_API_KEY &&
-                           GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
-                           GEMINI_API_KEY.trim() !== "");
+    const hasGeminiKey = !!(process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
+      process.env.GEMINI_API_KEY.trim() !== "");
 
-    const hasNovaKey = !!(NOVA_API_KEY &&
-                         NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
-                         NOVA_API_KEY.trim() !== "");
+    const hasNovaKey = !!(process.env.AMAZON_NOVA_API_KEY &&
+      process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
+      process.env.AMAZON_NOVA_API_KEY.trim() !== "");
+
+    const hasOpenAIKey = !!(process.env.OPENAI_API_KEY &&
+      process.env.OPENAI_API_KEY.trim() !== "");
 
     const hasAzureKey = !!(AZURE_OPENAI_API_KEY &&
-                          AZURE_OPENAI_ENDPOINT &&
-                          AZURE_OPENAI_DEPLOYMENT &&
-                          AZURE_OPENAI_API_KEY.trim() !== "" &&
-                          AZURE_OPENAI_ENDPOINT.trim() !== "" &&
-                          AZURE_OPENAI_DEPLOYMENT.trim() !== "");
-
-    const hasOpenAIKey = !!(OPENAI_API_KEY &&
-                           OPENAI_API_KEY.trim() !== "");
+      AZURE_OPENAI_ENDPOINT &&
+      AZURE_OPENAI_DEPLOYMENT &&
+      AZURE_OPENAI_API_KEY.trim() !== "" &&
+      AZURE_OPENAI_ENDPOINT.trim() !== "" &&
+      AZURE_OPENAI_DEPLOYMENT.trim() !== "");
 
     if (model === "simulation-mode") {
       console.log("Orchestrator: Bypassing live LLM per user request (Simulation Mode selected).");
@@ -433,54 +420,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
     }
 
     try {
-      if (hasNovaKey) {
-        console.log("Orchestrator: Executing request on Amazon Nova API (User configured)...");
-        const oai = getOpenAIClient();
-        const openaiMessages: any[] = [
-          { role: "system", content: systemInstruction }
-        ];
-
-        if (history && Array.isArray(history)) {
-          history.slice(-10).forEach((msg: any) => {
-            openaiMessages.push({
-              role: msg.sender === "user" ? "user" : "assistant",
-              content: msg.text
-            });
-          });
-        }
-
-        if (image && image.data && image.mimeType) {
-          let base64Url = image.data;
-          if (!base64Url.startsWith("data:")) {
-            base64Url = `data:${image.mimeType};base64,${image.data}`;
-          }
-          openaiMessages.push({
-            role: "user",
-            content: [
-              { type: "text", text: formattedPrompt },
-              {
-                type: "image_url",
-                image_url: { url: base64Url }
-              }
-            ]
-          });
-        } else {
-          openaiMessages.push({
-            role: "user",
-            content: formattedPrompt
-          });
-        }
-
-        const modelName = NOVA_MODEL;
-        const completion = await oai.chat.completions.create({
-          model: modelName,
-          messages: openaiMessages,
-          temperature: 0.2
-        });
-
-        rawText = completion.choices[0]?.message?.content || "{}";
-        usingEngineName = `Amazon Nova (${modelName})`;
-      } else if (hasAzureKey) {
+      if (hasAzureKey) {
         console.log("Orchestrator: Executing request on Azure OpenAI API (User configured)...");
         const azureClient = getAzureOpenAIClient();
         const azureMessages: any[] = [
@@ -521,6 +461,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
         const completion = await azureClient.chat.completions.create({
           model: AZURE_OPENAI_DEPLOYMENT,
           messages: azureMessages,
+          max_completion_tokens: 16384,
           temperature: 0.2
         });
 
@@ -530,7 +471,7 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
         const activeGeminiModel = (model && model.startsWith("gemini-")) ? model : "gemini-3.5-flash";
         console.log(`Orchestrator: Executing request on Google Gemini (${activeGeminiModel}) model...`);
         const ai = new GoogleGenAI({
-          apiKey: GEMINI_API_KEY,
+          apiKey: process.env.GEMINI_API_KEY,
           httpOptions: {
             headers: {
               'User-Agent': 'aistudio-build',
@@ -575,9 +516,56 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
 
         rawText = response.text || "{}";
         usingEngineName = `Google Gemini (${activeGeminiModel})`;
+      } else if (hasNovaKey) {
+        console.log("Orchestrator: Executing request on Amazon Nova API (User configured)...");
+        const oai = getOpenAIClient();
+        const openaiMessages: any[] = [
+          { role: "system", content: systemInstruction }
+        ];
+
+        if (history && Array.isArray(history)) {
+          history.slice(-10).forEach((msg: any) => {
+            openaiMessages.push({
+              role: msg.sender === "user" ? "user" : "assistant",
+              content: msg.text
+            });
+          });
+        }
+
+        if (image && image.data && image.mimeType) {
+          let base64Url = image.data;
+          if (!base64Url.startsWith("data:")) {
+            base64Url = `data:${image.mimeType};base64,${image.data}`;
+          }
+          openaiMessages.push({
+            role: "user",
+            content: [
+              { type: "text", text: formattedPrompt },
+              {
+                type: "image_url",
+                image_url: { url: base64Url }
+              }
+            ]
+          });
+        } else {
+          openaiMessages.push({
+            role: "user",
+            content: formattedPrompt
+          });
+        }
+
+        const modelName = process.env.AMAZON_NOVA_MODEL || "nova-2-lite-v1";
+        const completion = await oai.chat.completions.create({
+          model: modelName,
+          messages: openaiMessages,
+          temperature: 0.2
+        });
+
+        rawText = completion.choices[0]?.message?.content || "{}";
+        usingEngineName = `Amazon Nova (${modelName})`;
       } else if (hasOpenAIKey) {
         console.log("Orchestrator: Executing request on OpenAI gpt-4o-mini model...");
-        const oai = new OpenAI({ apiKey: OPENAI_API_KEY });
+        const oai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const openaiMessages: any[] = [
           { role: "system", content: systemInstruction }
         ];
@@ -682,8 +670,8 @@ Generate *only* valid JSON. Do not wrap in markdown code blocks like \`\`\`json.
   } catch (error: any) {
     console.error("Core Generative API Error:", error);
     const hasImage = req.body.image && req.body.image.data;
-    
-    const fallbackResponse = hasImage 
+
+    const fallbackResponse = hasImage
       ? `### Multi-Modal Architecture Inspector (Local Simulation Mode)
       
 Your uploaded system design layout diagram (MIME: **${req.body.image.mimeType || 'image/png'}**, Size: ~${Math.ceil(req.body.image.data.length * 0.75 / 1024)} KB) has been successfully decrypted and parsed by the model's structural vision processor.
@@ -695,7 +683,7 @@ Your uploaded system design layout diagram (MIME: **${req.body.image.mimeType ||
 
 **Visual Topology Recommendations**:
 - Integrate a robust **Ingestion Buffer (Kafka/Pulsar)** to absorb traffic spikes and decouple compute worker nodes.
-- Maintain a **shared-nothing architecture** with high-contrast data visualizers for fast telemetry inspection.` 
+- Maintain a **shared-nothing architecture** with high-contrast data visualizers for fast telemetry inspection.`
       : `### Scalability Engine Blueprint (Simulated Mode)
 
 The gateway requires a **multi-tiered architecture** focusing on high-velocity state manipulation and distributed log distribution:
@@ -703,7 +691,7 @@ The gateway requires a **multi-tiered architecture** focusing on high-velocity s
 - **Compute layer**: Run stateless processing loops (Go pipeline / Rust actors) inside containerized orchestrations dynamically scaled via core queue lag feedback.
 - **Local Cache Strategy**: Hold stateful windows in low-latency Key-Value blocks like Qdrant or RocksDB prior to deep persistent ingestion.`;
 
-    const fallbackCode = hasImage 
+    const fallbackCode = hasImage
       ? `package main
 
 import "fmt"
@@ -725,9 +713,10 @@ func ProcessThroughput() {
 }`;
 
     // Append beautiful, helpful message on Vercel deployment and environment setup if no active key is found or there is a failure
-    const hasAnyModelKey = !!((GEMINI_API_KEY && GEMINI_API_KEY !== "MY_GEMINI_API_KEY") ||
-                            (NOVA_API_KEY && NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4") ||
-                            OPENAI_API_KEY);
+    const hasAnyModelKey = !!((AZURE_OPENAI_API_KEY && AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_DEPLOYMENT) ||
+      (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY") ||
+      (process.env.AMAZON_NOVA_API_KEY && process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4") ||
+      process.env.OPENAI_API_KEY);
 
     let displayResponse = fallbackResponse;
     if (!hasAnyModelKey) {
@@ -800,7 +789,7 @@ app.post("/api/documents/upload", async (req, res) => {
       try {
         const buffer = Buffer.from(base64, "base64");
         sizeInKb = parseFloat((buffer.length / 1024).toFixed(1));
-        
+
         let extractedText = "";
         try {
           // Lazy runtime dynamic import to ensure zero boot impact & startup safety
@@ -818,7 +807,7 @@ app.post("/api/documents/upload", async (req, res) => {
           // High-reliability raw stream character-range parsing fallback
           const rawString = buffer.toString("binary");
           const textMatches: string[] = [];
-          
+
           // Match PDF character string objects e.g., (Sample Text) Tj
           const regex = /\(([^)]+)\)\s*Tj/g;
           let match;
@@ -827,7 +816,7 @@ app.post("/api/documents/upload", async (req, res) => {
               textMatches.push(match[1]);
             }
           }
-          
+
           if (textMatches.length > 0) {
             extractedText = textMatches.join(" ");
           } else {
@@ -836,7 +825,7 @@ app.post("/api/documents/upload", async (req, res) => {
             const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 10);
             extractedText = lines.slice(0, 50).join("\n");
           }
-          
+
           if (!extractedText || extractedText.trim().length === 0) {
             extractedText = `Extracted Text Placeholder: Uploaded File "${name}" was indexed. Contents were parsed as generic layout elements.`;
           }
@@ -858,7 +847,7 @@ app.post("/api/documents/upload", async (req, res) => {
     // Measure approximate chunk capacity (splitting content into 100-word blocks)
     const words = parsedContent.split(/\s+/).length;
     const computedChunks = Math.max(1, Math.ceil(words / 100));
-    
+
     const newDoc: DBCheckDocument = {
       id: `doc-${Date.now()}`,
       name,
@@ -886,20 +875,20 @@ app.post("/api/documents/search", async (req, res) => {
       return;
     }
 
-    const hasGeminiKey = !!(GEMINI_API_KEY &&
-                           GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
-                           GEMINI_API_KEY.trim() !== "");
+    const hasGeminiKey = !!(process.env.GEMINI_API_KEY &&
+      process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY" &&
+      process.env.GEMINI_API_KEY.trim() !== "");
 
     // Use Google Gemini (fallback to Amazon Nova or local matching if necessary) to perform semantic matching
     try {
       const docsOverview = globalDocuments.map((d, index) => `Index [${index}]: id: ${d.id}, name: ${d.name}, snippet: ${d.content.slice(0, 300)}...`).join("\n");
-      
+
       let rawContent = "[]";
 
       if (hasGeminiKey) {
         console.log("Orchestrator: Executing semantic search on Google Gemini (gemini-3.5-flash)...");
         const ai = new GoogleGenAI({
-          apiKey: GEMINI_API_KEY,
+          apiKey: process.env.GEMINI_API_KEY,
           httpOptions: {
             headers: {
               'User-Agent': 'aistudio-build',
@@ -929,15 +918,15 @@ Return ONLY a JSON array of the format:
         rawContent = response.text || "[]";
       } else {
         // Fallback to Amazon Nova if configured, otherwise local matching
-        const hasNovaKey = !!(NOVA_API_KEY &&
-                             NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
-                             NOVA_API_KEY.trim() !== "");
+        const hasNovaKey = !!(process.env.AMAZON_NOVA_API_KEY &&
+          process.env.AMAZON_NOVA_API_KEY !== "1bbc36c2-88df-41a8-aa8d-4a279e61c9e4" &&
+          process.env.AMAZON_NOVA_API_KEY.trim() !== "");
 
         if (hasNovaKey) {
           console.log("Orchestrator: Executing semantic search fallback on Amazon Nova...");
           const oai = getOpenAIClient();
           const response = await oai.chat.completions.create({
-            model: NOVA_MODEL,
+            model: process.env.AMAZON_NOVA_MODEL || "nova-2-lite-v1",
             messages: [
               {
                 role: "system",
@@ -964,7 +953,7 @@ Return ONLY a JSON array of the format:
           throw new Error("No live API keys configured for semantic knowledge search.");
         }
       }
-      
+
       let cleanContent = rawContent.trim();
       if (cleanContent.startsWith("```json")) {
         cleanContent = cleanContent.substring(7);
