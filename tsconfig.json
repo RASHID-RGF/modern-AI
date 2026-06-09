@@ -15,6 +15,6 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "noEmit": false
+    "noEmit": true
   }
 }
